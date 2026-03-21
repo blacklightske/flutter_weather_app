@@ -14,4 +14,14 @@ class FavoritesRepository {
 
     return rows.map((row) => FavoriteCity.fromMap(row)).toList();
   }
+
+  Future<void> toggleFavorite(FavoriteCity city) async {
+    final exists = await _db.existsFavorite(city.lat, city.lon);
+
+    if (exists) {
+      await _db.deleteFavorite(city.lat, city.lon);
+    } else {
+      await _db.insertFavorite(city);
+    }
+  }
 }

@@ -54,4 +54,27 @@ class FavoritesDatabase {
 
     return await db.query('favorites', orderBy: 'savedAt DESC');
   }
+
+  Future<bool> existsFavorite(double lat, double lon) async {
+    final db = await instance.database;
+
+    final result = await db.query(
+      'favorites',
+      where: 'lat = ? AND lon = ?',
+      whereArgs: [lat, lon],
+      limit: 1,
+    );
+
+    return result.isNotEmpty;
+  }
+
+  Future<int> deleteFavorite(double lat, double lon) async {
+    final db = await instance.database;
+
+    return await db.delete(
+      'favorites',
+      where: 'lat = ? AND lon = ?',
+      whereArgs: [lat, lon],
+    );
+  }
 }

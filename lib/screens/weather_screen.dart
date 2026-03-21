@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:weather_app/cubit/favorites_cubit.dart';
-import 'package:weather_app/repository/favorites_repository.dart';
+import 'package:weather_app/cubit/favorites_state.dart';
 import 'package:weather_app/screens/favourites_screen.dart';
 
 import '../cubit/weather_cubit.dart';
@@ -19,10 +19,12 @@ class WeatherScreen extends StatefulWidget {
 
 class _WeatherScreenState extends State<WeatherScreen> {
   final TextEditingController controller = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     context.read<WeatherCubit>().loadCounties();
+    context.read<FavoritesCubit>().loadFavorites();
   }
 
   @override
@@ -37,7 +39,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
       appBar: AppBar(
         title: const Text('Weather App'),
         actions: [
-          // light mode dark mode toggle
           BlocBuilder<ThemeCubit, ThemeState>(
             builder: (context, state) {
               return Switch(
@@ -49,19 +50,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
             },
           ),
 
-          // favourites button
           IconButton(
             icon: const Icon(Icons.favorite),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider(
-                    create: (_) =>
-                        FavoritesCubit(FavoritesRepository())..loadFavorites(),
-                    child: const FavoritesScreen(),
-                  ),
-                ),
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
               );
             },
           ),
@@ -81,7 +75,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ✅ Button that disables itself during loading
             BlocBuilder<WeatherCubit, WeatherState>(
               builder: (context, state) {
                 final isLoading = state.status == WeatherStatus.loading;
@@ -102,91 +95,103 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
             ElevatedButton(
               onPressed: () {
-                final city = controller.text.trim();
-
                 context.read<WeatherCubit>().showCounties();
               },
-              child: Text('Back to counties'),
+              child: const Text('Back to counties'),
             ),
 
             const SizedBox(height: 32),
 
-            // ✅ Result area (loading / loaded / error / initial)
-            BlocBuilder<WeatherCubit, WeatherState>(
-              builder: (context, state) {
-                if (state.status == WeatherStatus.loading) {
-                  return const CircularProgressIndicator();
-                }
+            Expanded(
+              child: BlocBuilder<FavoritesCubit, FavoritesState>(
+                builder: (context, favState) {
+                  return BlocBuilder<WeatherCubit, WeatherState>(
+                    builder: (context, state) {
+                      if (state.status == WeatherStatus.loading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                if (state.status == WeatherStatus.loaded) {
-                  if (state.data != null) {
-                    return Column(
-                      children: [
-                        Text(state.data!.city),
+                      if (state.status == WeatherStatus.loaded) {
+                        if (state.data != null) {
+                          final weather = state.data!;
 
-                        Text(
-                          '${state.data!.temperature} °C',
-                          style: const TextStyle(fontSize: 24),
-                        ),
+                          final isFavorited = favState.favorites.any(
+                            (item) =>
+                                item.lat == weather.lat &&
+                                item.lon == weather.lon,
+                          );
 
-                        Text(state.data!.description),
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(weather.city),
+                              Text(
+                                '${weather.temperature} °C',
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                              Text(weather.description),
+                              Text(weather.country),
 
-                        const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
-                        IconButton(
-                          icon: const Icon(Icons.favorite_border),
-                          onPressed: () {
-                            print('favourite');
-                            final weather = state.data!;
+                              IconButton(
+                                icon: Icon(
+                                  isFavorited
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isFavorited ? Colors.red : null,
+                                ),
+                                onPressed: () {
+                                  final favorite = FavoriteCity(
+                                    cityName: weather.city,
+                                    country: weather.country,
+                                    lat: weather.lat,
+                                    lon: weather.lon,
+                                    savedAt: DateTime.now(),
+                                  );
 
-                            final favorite = FavoriteCity(
-                              cityName: weather.city,
-                              country: weather.country,
-                              lat: weather.lat,
-                              lon: weather.lon,
-                              savedAt: DateTime.now(),
-                            );
+                                  context.read<FavoritesCubit>().toggleFavorite(
+                                    favorite,
+                                  );
+                                },
+                              ),
+                            ],
+                          );
+                        }
 
-                            print(
-                              'about to save: ${favorite.cityName}, ${favorite.country}',
-                            );
+                        return ListView.builder(
+                          itemCount: state.items.length,
+                          itemBuilder: (context, index) {
+                            final item = state.items[index];
 
-                            context.read<FavoritesCubit>().addFavorite(
-                              favorite,
+                            return ListTile(
+                              onTap: () => context
+                                  .read<WeatherCubit>()
+                                  .fetchWeather(item.city),
+                              title: Text(item.city),
+                              subtitle: Text(item.description),
+                              trailing: Text('${item.temperature} °C'),
                             );
                           },
-                        ),
-                      ],
-                    );
-                  }
-                  return Expanded(
-                    child: ListView.builder(
-                      itemCount: state.items.length,
-                      itemBuilder: (context, index) {
-                        final item = state.items[index];
-
-                        return ListTile(
-                          onTap: () => context
-                              .read<WeatherCubit>()
-                              .fetchWeather(item.city),
-                          title: Text(item.city),
-                          subtitle: Text(item.description),
-                          trailing: Text('${item.temperature} °C'),
                         );
-                      },
-                    ),
-                  );
-                }
+                      }
 
-                if (state.status == WeatherStatus.error) {
-                  return Text(
-                    state.errorMessage ?? 'Something went wrong',
-                    style: const TextStyle(color: Colors.red),
-                  );
-                }
+                      if (state.status == WeatherStatus.error) {
+                        return Center(
+                          child: Text(
+                            state.errorMessage ?? 'Something went wrong',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        );
+                      }
 
-                return const Text('Enter a city to get weather');
-              },
+                      return const Center(
+                        child: Text('Enter a city to get weather'),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

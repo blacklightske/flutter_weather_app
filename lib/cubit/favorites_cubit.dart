@@ -35,4 +35,11 @@ class FavoritesCubit extends Cubit<FavoritesState> {
     // reload list after insertion
     await loadFavorites();
   }
+
+  Future<void> toggleFavorite(FavoriteCity city) async {
+    await _repository.toggleFavorite(city);
+
+    // refresh list after change
+    await loadFavorites();
+  }
 }
