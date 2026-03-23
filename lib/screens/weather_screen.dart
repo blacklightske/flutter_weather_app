@@ -134,6 +134,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
                               const SizedBox(height: 12),
 
+                              TextButton(
+                                onPressed: () =>
+                                    throw Exception('Test Crashlytics crash'),
+                                child: const Text('Test Crash'),
+                              ),
+                              const SizedBox(height: 12),
                               IconButton(
                                 icon: Icon(
                                   isFavorited

@@ -4,9 +4,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive/hive.dart';
 
 import '../models/weather_data.dart';
+import '../services/crash_reporting_service.dart';
 
 class WeatherRepository {
   final Dio dio;
+  final CrashReportingService crashService = CrashReportingService();
   final Box<WeatherData> box = Hive.box<WeatherData>('weatherBox');
 
   WeatherRepository({Dio? dioClient}) : dio = dioClient ?? Dio();
@@ -42,7 +44,10 @@ class WeatherRepository {
         cancelToken: cancelToken, // ✅ add this
       );
       return WeatherData.fromJson(response.data);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await crashService.setKey('city', city);
+      crashService.log('WeatherRepository.fetchWeather failed');
+      await crashService.recordError(e, stackTrace);
       throw Exception('Failed to fetch weather: $e');
     }
   }
