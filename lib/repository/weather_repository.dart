@@ -39,16 +39,13 @@ class WeatherRepository {
         'https://api.openweathermap.org/data/2.5/weather?q=$city&appid=$apiKey&units=metric';
 
     try {
-      final response = await dio.get(
-        url,
-        cancelToken: cancelToken, // ✅ add this
-      );
+      final response = await dio.get(url, cancelToken: cancelToken);
       return WeatherData.fromJson(response.data);
     } catch (e, stackTrace) {
       await crashService.setKey('city', city);
       crashService.log('WeatherRepository.fetchWeather failed');
       await crashService.recordError(e, stackTrace);
-      throw Exception('Failed to fetch weather: $e');
+      rethrow;
     }
   }
 }

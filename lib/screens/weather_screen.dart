@@ -105,7 +105,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
             Expanded(
               child: BlocBuilder<FavoritesCubit, FavoritesState>(
                 builder: (context, favState) {
-                  return BlocBuilder<WeatherCubit, WeatherState>(
+                  return BlocConsumer<WeatherCubit, WeatherState>(
+                    listener: (context, state) {
+                      if (state.status == WeatherStatus.error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              state.errorMessage ?? 'Failed to fetch weather',
+                            ),
+                          ),
+                        );
+                      }
+                    },
                     builder: (context, state) {
                       if (state.status == WeatherStatus.loading) {
                         return const Center(child: CircularProgressIndicator());
@@ -115,7 +126,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         if (state.data != null) {
                           final weather = state.data!;
 
-                          final isFavorited = favState.favorites.any(
+                          final isFavorite = favState.favorites.any(
                             (item) =>
                                 item.lat == weather.lat &&
                                 item.lon == weather.lon,
@@ -142,10 +153,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               const SizedBox(height: 12),
                               IconButton(
                                 icon: Icon(
-                                  isFavorited
+                                  isFavorite
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: isFavorited ? Colors.red : null,
+                                  color: isFavorite ? Colors.red : null,
                                 ),
                                 onPressed: () {
                                   final favorite = FavoriteCity(

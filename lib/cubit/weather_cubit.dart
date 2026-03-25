@@ -62,7 +62,10 @@ class WeatherCubit extends Cubit<WeatherState> {
       // ✅ If this error is from cancellation, ignore it (no error UI)
       if (CancelToken.isCancel(e)) return;
       emit(
-        state.copyWith(status: WeatherStatus.error, errorMessage: e.toString()),
+        state.copyWith(
+          status: WeatherStatus.error,
+          errorMessage: _mapDioErrorToMessage(e),
+        ),
       );
     } catch (e) {
       emit(
@@ -131,6 +134,30 @@ class WeatherCubit extends Cubit<WeatherState> {
 
     if (city != null) {
       await fetchWeather(city);
+    }
+  }
+
+  String _mapDioErrorToMessage(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'The request took too long. Please try again.';
+
+      case DioExceptionType.connectionError:
+        return 'No internet connection. Check your network and try again.';
+
+      case DioExceptionType.badResponse:
+        if (e.response?.statusCode == 404) {
+          return 'City not found. Check the spelling and try again.';
+        }
+        return 'Server error. Please try again later.';
+
+      case DioExceptionType.cancel:
+        return 'Request cancelled.';
+
+      default:
+        return 'Something went wrong. Please try again.';
     }
   }
 
